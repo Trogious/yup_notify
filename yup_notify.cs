@@ -9,13 +9,13 @@ using System.Security.Authentication;
 
 public class YupNotify
 {
-  private static readonly String SECRET_KEY = "abc123";
-  private static readonly String ENDPOINT_URI = "https://127.0.0.1:8000/notify";
+  private static readonly String API_KEY = "abc123"
+  private static readonly String ENDPOINT_URI = "https://127.0.0.1:8000/notify"
 
   private async Task<String> sendPostRequest(String uri) {
     var values = new Dictionary<string, string>
       {
-        { "key", SECRET_KEY },
+        { "key", API_KEY },
         { "notification", "uploaded" }
       };
 
@@ -38,6 +38,7 @@ public class YupNotify
     {
       return true; //accepts invalid certificates
     };
+    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
     var endpoint_uri = ENDPOINT_URI;
     if (args.Length > 0) { // endpoint uri was given

@@ -6,7 +6,7 @@ import sys
 
 from flask import Flask, request
 
-SECRET_KEY = 'abc123'
+API_KEY = 'abc123'
 UPLOADER_SCRIPT = './upload.sh'
 SSL_CERT_PATH = './cert.pem'
 SSL_KEY_PATH = './key.pem'
@@ -22,7 +22,7 @@ def run_server():
     @app.route('/notify', methods=['POST'])
     def notified():
         try:
-            if request.method == 'POST' and request.form.get('key') == SECRET_KEY:
+            if request.method == 'POST' and request.form.get('key') == API_KEY:
                 initiate_upload()
                 return 'notified', 200
         except Exception as e:
