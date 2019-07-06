@@ -5,6 +5,7 @@ import subprocess
 import sys
 
 from flask import Flask, request
+from threading import Thread
 
 API_KEY = 'abc123'
 UPLOADER_SCRIPT = './upload.sh'
@@ -13,7 +14,7 @@ SSL_KEY_PATH = './key.pem'
 
 
 def initiate_upload():
-    subprocess.call(UPLOADER_SCRIPT)
+    subprocess.run(UPLOADER_SCRIPT)
 
 
 def run_server():
@@ -23,7 +24,8 @@ def run_server():
     def notified():
         try:
             if request.method == 'POST' and request.form.get('key') == API_KEY:
-                initiate_upload()
+                thread = Thread(target=initiate_upload)
+                thread.start()
                 return 'notified', 200
         except Exception as e:
             sys.stderr.write(str(e) + '\n')

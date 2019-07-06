@@ -17,6 +17,8 @@ sub sanitize {
     s/ENDPOINT_URI =.*/ENDPOINT_URI = "https:\/\/127.0.0.1:8000\/notify"/;
     print { $output_file } $_;
   }
+  close($input_file);
+  close($output_file);
 }
 
 sanitize('server.py');
