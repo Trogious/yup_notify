@@ -3,9 +3,10 @@ import os
 import ssl
 import subprocess
 import sys
+from queue import Queue
+from threading import Thread
 
 from flask import Flask, request
-from threading import Thread
 
 API_KEY = 'abc123'
 UPLOADER_SCRIPT = './upload.sh'
@@ -13,8 +14,29 @@ SSL_CERT_PATH = './cert.pem'
 SSL_KEY_PATH = './key.pem'
 
 
-def initiate_upload():
-    subprocess.run(UPLOADER_SCRIPT)
+class NotificationManager(Thread):
+    notifications = Queue()
+
+    @staticmethod
+    def initiate_upload():
+        subprocess.run(UPLOADER_SCRIPT)
+
+    @staticmethod
+    def initiate(notification):
+        if NotificationManager.notifications.empty():
+            NotificationManager.notifications.put(notification)
+            thread = NotificationManager()
+            thread.start()
+        else:
+            NotificationManager.notifications.put(notification)
+
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        while not NotificationManager.notifications.empty():
+            NotificationManager.initiate_upload()
+            NotificationManager.notifications.get()
 
 
 def run_server():
@@ -24,8 +46,7 @@ def run_server():
     def notified():
         try:
             if request.method == 'POST' and request.form.get('key') == API_KEY:
-                thread = Thread(target=initiate_upload)
-                thread.start()
+                NotificationManager.initiate(request.form.get('notification'))
                 return 'notified', 200
         except Exception as e:
             sys.stderr.write(str(e) + '\n')

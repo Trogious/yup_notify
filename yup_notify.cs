@@ -9,8 +9,8 @@ using System.Security.Authentication;
 
 public class YupNotify
 {
-  private static readonly String API_KEY = "abc123"
-  private static readonly String ENDPOINT_URI = "https://127.0.0.1:8000/notify"
+  private static readonly String API_KEY = "abc123";
+  private static readonly String ENDPOINT_URI = "https://127.0.0.1:8000/notify";
 
   private async Task<String> sendPostRequest(String uri) {
     var values = new Dictionary<string, string>
@@ -33,9 +33,23 @@ public class YupNotify
     return null;
   }
 
+  private static String ExtractCertParam(string container, string paramName) {
+    foreach (var param in container.Split(',')) {
+      var p = param.Trim();
+      var kv = p.Split('=');
+      if (paramName.Equals(kv[0])) {
+        return kv[1];
+      }
+    }
+
+    return null;
+  }
+
   public static int Main(string[] args) {
     ServicePointManager.ServerCertificateValidationCallback = (object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) =>
     {
+      //Console.WriteLine(ExtractCertParam(certificate.Subject, "CN"));
+
       return true; //accepts invalid certificates
     };
     ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
