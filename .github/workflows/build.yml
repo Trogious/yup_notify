@@ -6,13 +6,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v2
     - name: install mono
       run: |
         sudo apt-get install mono-mcs
     - name: build exe
       run: |
-        ls *.cs
-        find . -name '*.cs'
         mcs -r:System.Net.Http -sdk:4.5 *.cs
         mono *.exe || echo 'not run'
     - name: prepare release
