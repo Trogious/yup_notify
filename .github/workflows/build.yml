@@ -11,6 +11,8 @@ jobs:
         sudo apt-get install mono-mcs
     - name: build exe
       run: |
+        ls *.cs
+        find . -name '*.cs'
         mcs -r:System.Net.Http -sdk:4.5 *.cs
         mono *.exe || echo 'not run'
     - name: prepare release
