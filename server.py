@@ -8,18 +8,37 @@ from threading import Thread
 
 from flask import Flask, request
 
-API_KEY = 'abc123'
-UPLOADER_SCRIPT = './upload.sh'
-SSL_CERT_PATH = './cert.pem'
-SSL_KEY_PATH = './key.pem'
+API_KEY = os.getenv('YUP_API_KEY', 'abc123')
+UPLOADER_SCRIPT_DIR = os.getenv('YUP_UPLOADER_SCRIPT_DIR', './')
+UPLOADER_SCRIPT_DEFAULT = os.getenv('YUP_UPLOADER_SCRIPT_DEFAULT', 'uploadGameplay.sh')
+SSL_CERT_PATH = os.getenv('YUP_SSL_CERT_PATH', './cert.pem')
+SSL_KEY_PATH = os.getenv('YUP_SSL_KEY_PATH', './key.pem')
+LISTEN_HOST = os.getenv('YUP_NOTIFY_HOST', '0.0.0.0')
+LISTEN_PORT = int(os.getenv('YUP_NOTIFY_PORT', 8000))
 
 
 class NotificationManager(Thread):
     notifications = Queue()
 
     @staticmethod
-    def initiate_upload():
-        subprocess.run(UPLOADER_SCRIPT)
+    def get_uploader_script(notification):
+        name = 'upload%s%s.sh' % (notification[0].upper(), notification[1:])
+        path = os.path.join(UPLOADER_SCRIPT_DIR, name)
+        if os.path.isfile(path):
+            return path
+        sys.stderr.write('no script found for: %s\n' % notification)
+        path = os.path.join(UPLOADER_SCRIPT_DIR, UPLOADER_SCRIPT_DEFAULT)
+        if os.path.isfile(path):
+            return path
+        return None
+
+    @staticmethod
+    def initiate_upload(notification):
+        path = NotificationManager.get_uploader_script(notification)
+        if path:
+            subprocess.run(path)
+        else:
+            sys.stderr.write('uploaders script not found\n')
 
     @staticmethod
     def initiate(notification):
@@ -35,8 +54,7 @@ class NotificationManager(Thread):
 
     def run(self):
         while not NotificationManager.notifications.empty():
-            NotificationManager.initiate_upload()
-            NotificationManager.notifications.get()
+            NotificationManager.initiate_upload(NotificationManager.notifications.get())
 
 
 def run_server():
@@ -45,6 +63,7 @@ def run_server():
     @app.route('/notify', methods=['POST'])
     def notified():
         try:
+            print(request.form)
             if request.method == 'POST' and request.form.get('key') == API_KEY:
                 NotificationManager.initiate(request.form.get('notification'))
                 return 'notified', 200
@@ -53,11 +72,9 @@ def run_server():
         return 'NotFound', 404
     app.logger.disabled = True
     logging.getLogger('werkzeug').disabled = True
-    server_host = os.getenv('YUP_NOTIFY_HOST', '0.0.0.0')
-    server_port = os.getenv('YUP_NOTIFY_PORT', 8000)
     context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
     context.load_cert_chain(SSL_CERT_PATH, SSL_KEY_PATH)
-    app.run(host=server_host, port=server_port, ssl_context=context)
+    app.run(host=LISTEN_HOST, port=LISTEN_PORT, ssl_context=context)
 
 
 run_server()

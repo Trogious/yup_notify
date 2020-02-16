@@ -14,7 +14,7 @@ public class YupNotify
   private const String ENV_ENDPOINT_URI = "YUP_NOTIFY_ENDPOINT_URI";
   private static String API_KEY = "abc123";
   private static String ENDPOINT_URI = "https://127.0.0.1:8000/notify";
-  private static String NOTIFICATION = "uploaded";
+  private static String NOTIFICATION = "gameplay";
 
   private async Task<String> sendPostRequest(String uri) {
     var values = new Dictionary<string, string>
@@ -36,19 +36,19 @@ public class YupNotify
 
     return null;
   }
-/*
-private static String ExtractCertParam(string container, string paramName) {
-    foreach (var param in container.Split(',')) {
-      var p = param.Trim();
-      var kv = p.Split('=');
-      if (paramName.Equals(kv[0])) {
-        return kv[1];
+
+  private static String ExtractCertParam(string container, string paramName) {
+      foreach (var param in container.Split(',')) {
+        var p = param.Trim();
+        var kv = p.Split('=');
+        if (paramName.Equals(kv[0])) {
+          return kv[1];
+        }
       }
+
+      return null;
     }
 
-    return null;
-  }
-*/
   private static String GetEnvVar(string name) {
     var value = Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Process);
     if (null == value) {
