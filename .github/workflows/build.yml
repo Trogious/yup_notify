@@ -16,7 +16,7 @@ jobs:
         mono *.exe || echo 'not run'
     - name: prepare release
       id: prepare_release
-      if: contains(github.ref, 'tags/') && startsWith(steps.prepare_release.outputs.tag_name, 'v')
+      if: contains(github.ref, 'tags/')
       run: |
         TAG_NAME=`echo $GITHUB_REF | cut -d / -f3`
         echo ::set-output name=tag_name::$TAG_NAME
@@ -24,7 +24,7 @@ jobs:
         echo ::set-output name=version_for_setup::$VERSION
     - name: assemble package
       id: asseemble_package
-      if: success()
+      if: startsWith(steps.prepare_release.outputs.tag_name, 'v')
       run: |
         DIRNAME=${{github.event.repository.name}}-${{steps.prepare_release.outputs.version_for_setup}}
         mkdir ./$DIRNAME
