@@ -18,13 +18,19 @@ public class YupNotify
   private const string ENV_RSYNC_DESTINATION = "YUP_NOTIFY_RSYNC_DESTINATION";
   private static readonly string[] VIDEO_EXTENSIONS = new string[] {"mp4", "mkv", "avi", "mov", "m2ts"};
   private static readonly string[] RSYNC_PATHS = new string[] {@".\rsync.exe", @"C:\Program Files\cwrsync\bin\rsync.exe", @"C:\Program Files (x86)\cwrsync\bin\rsync.exe", @"C:\ProgramData\cwrsync\bin\rsync.exe",
-                                                     @"C:\Windows\System32\rsync.exe", @"C:\Windows\System\rsync.exe", @"C:\Windows\rsync.exe", @"C:\rsync.exe", "./rsync", "/usr/local/bin/rsync", "/usr/bin/rsync", "/bin/rsync"};
+    @"C:\Windows\System32\rsync.exe", @"C:\Windows\System\rsync.exe", @"C:\Windows\rsync.exe", @"C:\rsync.exe", "./rsync", "/usr/local/bin/rsync", "/usr/bin/rsync", "/bin/rsync"};
+  private static readonly Dictionary<string,Action<string>> OPTION_MAPPING = new Dictionary<string,Action<string>>() {
+    {"n", _ => notifyOnly = true },
+    {"notify-only", _ => notifyOnly = true },
+    {"verbose:", v => Console.WriteLine("verbose level: {0}", Int32.Parse(v)) }
+  };
   private static string API_KEY = "abc123";
   private static string ENDPOINT_URI = "https://127.0.0.1:8000/notify";
   private static string NOTIFICATION = "gameplay";
   private static int SSH_PORT = 22;
   private static string RSYNC_DESTINATION = "yup@127.0.0.1:dest_dir/";
   private static string exeContainingDir;
+  private static bool notifyOnly = false;
 
   private async Task<string> sendPostRequest(string uri) {
     var values = new Dictionary<string, string>
@@ -94,6 +100,35 @@ public class YupNotify
     }
   }
 
+  private static void ReadArguments(string[] args) {
+    bool optionsEnd = false;
+    var withArgument = false;
+    Action<String> lastAction = null;
+    for (var i = 0; i < args.Length; ++i) {
+      if (optionsEnd) {
+        // all remaining are just arguments
+      } else if (args[i].Equals("--")) {
+        optionsEnd = true;
+      } else if (withArgument) {
+        withArgument = false;
+        lastAction(args[i]);
+      } else {
+        foreach (var option in OPTION_MAPPING) {
+          var optName = option.Key.Replace(":", "");
+          if ((optName.Length == 1 && args[i].Equals("-" + optName)) || (optName.Length > 1 && args[i].Equals("--" + optName))) {
+            withArgument = option.Key.Contains(":");
+            if (withArgument) {
+              lastAction = option.Value;
+            } else {
+              option.Value(null);
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
   private static string GetExeContainingDir() {
     if (exeContainingDir == null) {
       exeContainingDir =  Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
@@ -144,27 +179,30 @@ public class YupNotify
 
   public static int Main(string[] args) {
     ReadEnvironment();
+    ReadArguments(args);
 
-    string workingDir = GetExeContainingDir();
-    Console.WriteLine("working directory: " + workingDir);
-    string rsyncPath = GetRsyncPath();
-    if (rsyncPath == null) {
-      Console.WriteLine("no rsync binary found");
-      return 3;
-    }
+    if (!notifyOnly) {
+      string workingDir = GetExeContainingDir();
+      Console.WriteLine("working directory: " + workingDir);
+      string rsyncPath = GetRsyncPath();
+      if (rsyncPath == null) {
+        Console.WriteLine("no rsync binary found");
+        return 3;
+      }
 
-    var videos = GetVideoFilePaths();
-    if (videos.Count < 1) {
-      Console.WriteLine("no videos found");
-      return 0;
-    }
-    Console.WriteLine("videos to upload from {0}:", workingDir);
-    videos.ForEach(v => Console.WriteLine(" " + Path.GetFileName(v)));
+      var videos = GetVideoFilePaths();
+      if (videos.Count < 1) {
+        Console.WriteLine("no videos found");
+        return 0;
+      }
+      Console.WriteLine("videos to upload from {0}:", workingDir);
+      videos.ForEach(v => Console.WriteLine(" " + Path.GetFileName(v)));
 
-    int code = ExecuteCommand(workingDir, rsyncPath, videos);
-    if (code != 0) {
-      Console.WriteLine("non-zero return code from rsync: {0}", code);
-      return code;
+      int code = ExecuteCommand(workingDir, rsyncPath, videos);
+      if (code != 0) {
+        Console.WriteLine("non-zero return code from rsync: {0}", code);
+        return code;
+      }
     }
 
     ServicePointManager.ServerCertificateValidationCallback = (object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) =>
