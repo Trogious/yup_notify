@@ -22,6 +22,8 @@ public class YupNotify
   private static readonly Dictionary<string,Action<string>> OPTION_MAPPING = new Dictionary<string,Action<string>>() {
     {"n", _ => notifyOnly = true },
     {"notify-only", _ => notifyOnly = true },
+    {"u", _ => uploadOnly = true },
+    {"upload-only", _ => uploadOnly = true },
     {"verbose:", v => Console.WriteLine("verbose level: {0}", Int32.Parse(v)) }
   };
   private static string API_KEY = "abc123";
@@ -31,6 +33,7 @@ public class YupNotify
   private static string RSYNC_DESTINATION = "yup@127.0.0.1:dest_dir/";
   private static string exeContainingDir;
   private static bool notifyOnly = false;
+  private static bool uploadOnly = false;
 
   private async Task<string> sendPostRequest(string uri) {
     var values = new Dictionary<string, string>
@@ -203,6 +206,10 @@ public class YupNotify
         Console.WriteLine("non-zero return code from rsync: {0}", code);
         return code;
       }
+    }
+
+    if (uploadOnly) {
+      return 0;
     }
 
     ServicePointManager.ServerCertificateValidationCallback = (object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) =>
