@@ -172,7 +172,7 @@ public class YupNotify
 
     startInfo.FileName = exePath;
     // startInfo.Verb = "runas";
-    startInfo.Arguments = "-hPe 'ssh -p" + SSH_PORT + "' " + string.Join(" ", args) + " " + RSYNC_DESTINATION;
+    startInfo.Arguments = "-hPe 'ssh -p" + SSH_PORT + "' \"" + string.Join("\" \"", args) + "\" " + RSYNC_DESTINATION;
     // startInfo.WindowStyle = ProcessWindowStyle.Hidden;
     Console.WriteLine(startInfo.FileName + " " + startInfo.Arguments);
     Process proc = Process.Start(startInfo);
