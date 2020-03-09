@@ -158,13 +158,15 @@ public class YupNotify
     return null;
   }
 
-  private static List<string> GetVideoFilePaths() {
+  private static List<string> GetVideoFileNames() {
     List<string> videoPaths = new List<string>(Directory.GetFiles(GetExeContainingDir(), "*." + VIDEO_EXTENSIONS[0], SearchOption.TopDirectoryOnly));
     for (var i = 1; i < VIDEO_EXTENSIONS.Length; ++i) {
       videoPaths.AddRange(Directory.GetFiles(GetExeContainingDir(), "*." + VIDEO_EXTENSIONS[i], SearchOption.TopDirectoryOnly));
     }
+    List<string> videoFileNames = new List<string>();
+    videoPaths.ForEach(v => videoFileNames.Add(Path.GetFileName(v)));
 
-    return videoPaths;
+    return videoFileNames;
   }
 
   private static int ExecuteCommand(string workingDir, string exePath, IEnumerable<string> args) {
@@ -202,13 +204,13 @@ public class YupNotify
         return 3;
       }
 
-      var videos = GetVideoFilePaths();
+      var videos = GetVideoFileNames();
       if (videos.Count < 1) {
         Console.WriteLine("no videos found");
         return 0;
       }
       Console.WriteLine("videos to upload from {0}:", workingDir);
-      videos.ForEach(v => Console.WriteLine(" " + Path.GetFileName(v)));
+      videos.ForEach(v => Console.WriteLine(" " + v));
 
       int code = ExecuteCommand(workingDir, rsyncPath, videos);
       if (code != 0) {
