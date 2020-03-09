@@ -22,6 +22,7 @@ public class YupNotify
   private static readonly Dictionary<string,Action<string>> OPTION_MAPPING = new Dictionary<string,Action<string>>() {
     {"n", _ => notifyOnly = true },
     {"notify-only", _ => notifyOnly = true },
+    {"no-quote-args", _ => quoteArgs = false },
     {"u", _ => uploadOnly = true },
     {"upload-only", _ => uploadOnly = true },
     {"verbose:", v => Console.WriteLine("verbose level: {0}", Int32.Parse(v)) }
@@ -34,6 +35,7 @@ public class YupNotify
   private static string exeContainingDir;
   private static bool notifyOnly = false;
   private static bool uploadOnly = false;
+  private static bool quoteArgs = true;
 
   private async Task<string> sendPostRequest(string uri) {
     var values = new Dictionary<string, string>
@@ -167,15 +169,22 @@ public class YupNotify
 
   private static int ExecuteCommand(string workingDir, string exePath, IEnumerable<string> args) {
     var startInfo = new ProcessStartInfo();
-    // startInfo.UseShellExecute = true;
+    startInfo.UseShellExecute = false;
     startInfo.WorkingDirectory = workingDir;
-
     startInfo.FileName = exePath;
     // startInfo.Verb = "runas";
-    startInfo.Arguments = "-hPe 'ssh -p" + SSH_PORT + "' \"" + string.Join("\" \"", args) + "\" " + RSYNC_DESTINATION;
+    if (quoteArgs) {
+      startInfo.Arguments = "-hPe 'ssh -p" + SSH_PORT + "' \"" + string.Join("\" \"", args) + "\" " + RSYNC_DESTINATION;
+    } else {
+      startInfo.Arguments = "-hPe 'ssh -p" + SSH_PORT + "' " + string.Join(" ", args) + " " + RSYNC_DESTINATION;
+    }
     // startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+    startInfo.RedirectStandardOutput = true;
+    startInfo.RedirectStandardError = true;
     Console.WriteLine(startInfo.FileName + " " + startInfo.Arguments);
     Process proc = Process.Start(startInfo);
+    Console.Write(proc.StandardOutput.ReadToEnd());
+    Console.Write(proc.StandardError.ReadToEnd());
     proc.WaitForExit();
     return proc.ExitCode;
   }
