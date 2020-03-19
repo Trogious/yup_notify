@@ -184,9 +184,13 @@ public class YupNotify
     startInfo.RedirectStandardOutput = true;
     startInfo.RedirectStandardError = true;
     Console.WriteLine(startInfo.FileName + " " + startInfo.Arguments);
-    Process proc = Process.Start(startInfo);
-    Console.Write(proc.StandardOutput.ReadToEnd());
-    Console.Write(proc.StandardError.ReadToEnd());
+    Process proc = new Process();
+    proc.StartInfo = startInfo;
+    proc.OutputDataReceived += (s, e) => Console.WriteLine(e.Data);
+    proc.ErrorDataReceived += (s, e) => Console.WriteLine(e.Data);
+    proc.Start();
+    proc.BeginOutputReadLine();
+    proc.BeginErrorReadLine();
     proc.WaitForExit();
     return proc.ExitCode;
   }
