@@ -16,6 +16,7 @@ public class YupNotify
   private const string ENV_ENDPOINT_URI = "YUP_NOTIFY_ENDPOINT_URI";
   private const string ENV_SSH_PORT = "YUP_NOTIFY_SSH_PORT";
   private const string ENV_RSYNC_DESTINATION = "YUP_NOTIFY_RSYNC_DESTINATION";
+  private const string ENV_LOGFILE_NAME = "YUP_LOGFILE_NAME";
   private static readonly string[] VIDEO_EXTENSIONS = new string[] {"mp4", "mkv", "avi", "mov", "m2ts"};
   private static readonly string[] RSYNC_PATHS = new string[] {@".\rsync.exe", @"C:\Program Files\cwrsync\bin\rsync.exe", @"C:\Program Files (x86)\cwrsync\bin\rsync.exe", @"C:\ProgramData\cwrsync\bin\rsync.exe",
     @"C:\Windows\System32\rsync.exe", @"C:\Windows\System\rsync.exe", @"C:\Windows\rsync.exe", @"C:\rsync.exe", "./rsync", "/usr/local/bin/rsync", "/usr/bin/rsync", "/bin/rsync"};
@@ -25,14 +26,16 @@ public class YupNotify
     {"no-quote-args", _ => quoteArgs = false },
     {"u", _ => uploadOnly = true },
     {"upload-only", _ => uploadOnly = true },
-    {"verbose:", v => Console.WriteLine("verbose level: {0}", Int32.Parse(v)) }
+    {"verbose:", v => Log("verbose level: {0}", Int32.Parse(v)) }
   };
   private static string API_KEY = "abc123";
   private static string ENDPOINT_URI = "https://127.0.0.1:8000/notify";
   private static string NOTIFICATION = "gameplay";
   private static int SSH_PORT = 22;
   private static string RSYNC_DESTINATION = "yup@127.0.0.1:dest_dir/";
+  private static string LOGFILE_NAME = "logfile.txt";
   private static string exeContainingDir;
+  private static StreamWriter logStream = null;
   private static bool notifyOnly = false;
   private static bool uploadOnly = false;
   private static bool quoteArgs = true;
@@ -52,7 +55,7 @@ public class YupNotify
         return await response.Content.ReadAsStringAsync();
       }
     } catch (Exception e) {
-      Console.WriteLine("Exception caught: {0}\n{1}", e.Message, e.StackTrace);
+      Log("Exception caught: {0}\n{1}", e.Message, e.StackTrace);
     }
 
     return null;
@@ -103,6 +106,10 @@ public class YupNotify
     if (null != value) {
       RSYNC_DESTINATION = value;
     }
+    value = GetEnvVar(ENV_LOGFILE_NAME);
+    if (null != value) {
+      LOGFILE_NAME = value;
+    }
   }
 
   private static void ReadArguments(string[] args) {
@@ -143,12 +150,12 @@ public class YupNotify
 
   private static string GetRsyncPath() {
     foreach (var path in RSYNC_PATHS) {
-      // Console.WriteLine("raw paths:");
+      // Log("raw paths:");
       if (File.Exists(path)) {
         return path;
       } else if (path.StartsWith(@".\") || path.StartsWith("./")) {
         string fullPath = Path.GetFullPath(Path.Combine(GetExeContainingDir(), path.Substring(2)));
-        // Console.WriteLine("full path: " + fullPath);
+        // Log("full path: " + fullPath);
         if (File.Exists(fullPath)) {
           return fullPath;
         }
@@ -183,11 +190,11 @@ public class YupNotify
     // startInfo.WindowStyle = ProcessWindowStyle.Hidden;
     startInfo.RedirectStandardOutput = true;
     startInfo.RedirectStandardError = true;
-    Console.WriteLine(startInfo.FileName + " " + startInfo.Arguments);
+    Log(startInfo.FileName + " " + startInfo.Arguments);
     Process proc = new Process();
     proc.StartInfo = startInfo;
-    proc.OutputDataReceived += (s, e) => Console.WriteLine(e.Data);
-    proc.ErrorDataReceived += (s, e) => Console.WriteLine(e.Data);
+    proc.OutputDataReceived += (s, e) => Log(e.Data);
+    proc.ErrorDataReceived += (s, e) => Log(e.Data);
     proc.Start();
     proc.BeginOutputReadLine();
     proc.BeginErrorReadLine();
@@ -195,30 +202,57 @@ public class YupNotify
     return proc.ExitCode;
   }
 
+  private static void OpenLogFile() {
+    var logfile = Path.GetFullPath(Path.Combine(GetExeContainingDir(), LOGFILE_NAME));
+    try {
+      logStream = new StreamWriter(logfile, true);
+      Log("PID: " + Process.GetCurrentProcess().Id + " date: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+    } catch (Exception e) {
+      Console.WriteLine("cannot open logfile for writing: {0}\n{1}", e.Message, e.StackTrace);
+    }
+  }
+
+  private static void Log(string str) {
+    Console.WriteLine(str);
+    if (logStream != null) {
+      logStream.WriteLine(str);
+      logStream.Flush();
+    }
+  }
+
+  private static void Log(string format, Object arg0) {
+    Log(string.Format(format, arg0));
+  }
+
+  private static void Log(string format, Object arg0, Object arg1) {
+    Log(string.Format(format, arg0, arg1));
+  }
+
   public static int Main(string[] args) {
     ReadEnvironment();
+    OpenLogFile();
     ReadArguments(args);
 
     if (!notifyOnly) {
       string workingDir = GetExeContainingDir();
-      Console.WriteLine("working directory: " + workingDir);
+      Log("working directory: " + workingDir);
       string rsyncPath = GetRsyncPath();
       if (rsyncPath == null) {
-        Console.WriteLine("no rsync binary found");
+        Log("no rsync binary found");
         return 3;
       }
 
       var videos = GetVideoFileNames();
       if (videos.Count < 1) {
-        Console.WriteLine("no videos found");
+        Log("no videos found");
         return 0;
       }
-      Console.WriteLine("videos to upload from {0}:", workingDir);
-      videos.ForEach(v => Console.WriteLine(" " + v));
+      Log("videos to upload from {0}:", workingDir);
+      videos.ForEach(v => Log(" " + v));
 
       int code = ExecuteCommand(workingDir, rsyncPath, videos);
       if (code != 0) {
-        Console.WriteLine("non-zero return code from rsync: {0}", code);
+        Log("non-zero return code from rsync: {0}", code);
         return code;
       }
     }
@@ -229,33 +263,29 @@ public class YupNotify
 
     ServicePointManager.ServerCertificateValidationCallback = (object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) =>
     {
-      //Console.WriteLine(ExtractCertParam(certificate.Subject, "CN"));
+      //Log(ExtractCertParam(certificate.Subject, "CN"));
 
       return true; //accepts also invalid certificates
     };
 
     ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
-    var endpoint_uri = ENDPOINT_URI;
-    if (args.Length > 0) { // endpoint uri was given
-      endpoint_uri = args[0];
-    }
     string response = null;
     try {
-      response = new YupNotify().sendPostRequest(endpoint_uri).Result;
+      response = new YupNotify().sendPostRequest(ENDPOINT_URI).Result;
     } catch (Exception e) {
-      Console.WriteLine("Exception caught: {0}\n{1}", e.Message, e.StackTrace);
+      Log("Exception caught: {0}\n{1}", e.Message, e.StackTrace);
       return 2;
     }
 
     var exitCode = 1; // exit failure
     if (null == response) {
-      Console.WriteLine("error getting notification response");
+      Log("error getting notification response");
     } else if ("notified" == response) {
-      Console.WriteLine("notification successfull");
+      Log("notification successfull");
       exitCode = 0;
     } else {
-      Console.WriteLine("unknown response");
+      Log("unknown response");
     }
 
     return exitCode;
