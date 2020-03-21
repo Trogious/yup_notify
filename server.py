@@ -17,16 +17,21 @@ LISTEN_HOST = os.getenv('YUP_NOTIFY_HOST', '0.0.0.0')
 LISTEN_PORT = int(os.getenv('YUP_NOTIFY_PORT', 8000))
 
 
+def log(txt):
+    sys.stderr.write(str(txt) + '\n')
+    sys.stderr.flush()
+
+
 class NotificationManager(Thread):
     notifications = Queue()
 
     @staticmethod
     def get_uploader_script(notification):
-        name = 'upload%s%s.sh' % (notification[0].upper(), notification[1:])
+        name = 'upload%s.sh' % (notification.upper())
         path = os.path.join(UPLOADER_SCRIPT_DIR, name)
         if os.path.isfile(path):
             return path
-        sys.stderr.write('no script found for: %s\n' % notification)
+        log('no script found for: %s' % notification)
         path = os.path.join(UPLOADER_SCRIPT_DIR, UPLOADER_SCRIPT_DEFAULT)
         if os.path.isfile(path):
             return path
@@ -38,7 +43,7 @@ class NotificationManager(Thread):
         if path:
             subprocess.run(path)
         else:
-            sys.stderr.write('uploaders script not found\n')
+            log('uploaders script not found')
 
     @staticmethod
     def initiate(notification):
@@ -68,12 +73,13 @@ def run_server():
                 NotificationManager.initiate(request.form.get('notification'))
                 return 'notified', 200
         except Exception as e:
-            sys.stderr.write(str(e) + '\n')
+            log(e)
         return 'NotFound', 404
     app.logger.disabled = True
     logging.getLogger('werkzeug').disabled = True
     context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
     context.load_cert_chain(SSL_CERT_PATH, SSL_KEY_PATH)
+    log('PID: %d' % os.getpid())
     app.run(host=LISTEN_HOST, port=LISTEN_PORT, ssl_context=context)
 
 
