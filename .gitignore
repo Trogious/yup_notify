@@ -2,3 +2,8 @@
 *.exe
 *.orig
 *.pem
+*.mp4
+*.mov
+*.avi
+*_cfg.json
+yup.py
